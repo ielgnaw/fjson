@@ -6,6 +6,8 @@
 import Debug from 'debug';
 import events from 'events';
 
+import {getLineContent} from './util';
+
 const debug = Debug('fjson:tokenizer');
 
 
@@ -36,30 +38,12 @@ export default function (fileContent) {
     while (pos < fileContentLen) {
         let char = fileContent[pos];
 
-        if (char === '\n' || char === '\r'
-                && fileContent[pos + 1] !== '\n') {
+        if ((char === '\n' || char === '\r') && fileContent[pos + 1] !== '\n') {
             offset = pos;
             line += 1;
         }
 
         switch (char) {
-            case '{':
-                tokens.push({
-                    type: 'LEFT-BRACE',
-                    value: char,
-                    line: line,
-                    col: pos - offset
-                });
-                break;
-            case '}':
-                tokens.push({
-                    type: 'RIGHT-BRACE',
-                    value: char,
-                    line: line,
-                    col: pos - offset
-                });
-                break;
-
             // 空格
             case ' ':
             // 制表符
@@ -72,7 +56,6 @@ export default function (fileContent) {
             case '\r':
             // 换页符
             case '\f':
-                let spaceType;
                 let next = pos;
                 do {
                     next += 1;
@@ -95,7 +78,66 @@ export default function (fileContent) {
 
                 pos = next - 1;
                 break;
+            case '/':
+                // TODO: directive
+
+                const nextChar = fileContent[pos + 1];
+                // 多行注释
+                if (nextChar === '*') {
+
+                }
+                // 单行注释
+                else if (nextChar === '/') {
+                    tokens.push({
+                        type: 'SINGLE_COMMENT',
+                        value: getLineContent(line, fileContent),
+                        line: line,
+                        col: pos - offset
+                    });
+                }
+                break;
+
+            case '{':
+                tokens.push({
+                    type: 'LEFT_BRACE',
+                    value: char,
+                    line: line,
+                    col: pos - offset
+                });
+                break;
+            case '}':
+                tokens.push({
+                    type: 'RIGHT_BRACE',
+                    value: char,
+                    line: line,
+                    col: pos - offset
+                });
+                break;
+
+            case ':':
+                tokens.push({
+                    type: 'COLON',
+                    value: char,
+                    line: line,
+                    col: pos - offset
+                });
+                break;
+
             default:
+                const RE_WORD_END = /[ \n\t\r\f\v\(\)\{\}:;@!'"\\\]\[#]|\/(?=\*)/g;
+                RE_WORD_END.lastIndex = pos + 1;
+                RE_WORD_END.exec(fileContent);
+                // if (RE_WORD_END.lastIndex === 0) {
+                //     next = fileContentLen - 1;
+                // }
+                // else {
+                //     next = RE_WORD_END.lastIndex - 2;
+                // }
+                next = RE_WORD_END.lastIndex - 2;
+
+                console.log('---' + fileContent.slice(pos, next + 1) + '--');
+                pos = next;
+                break;
 
         }
 

@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible Node.js debug attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "debug fjson",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceRoot}/example/single_comment/index.js",
+            "stopOnEntry": false,
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": null,
+            "runtimeExecutable": "${workspaceRoot}/node_modules/babel-cli/bin/babel-node.js",
+            "runtimeArgs": [
+                "--nolazy"
+            ],
+            "env": {
+                "NODE_ENV": "development"
+            },
+            "sourceMaps": false
+        }
+        // {
+        //     "name": "debug fjson",
+        //     "type": "node",
+        //     "request": "launch",
+        //     "cwd": "${workspaceRoot}",
+        //     "program": "/Users/ielgnaw/.nvm/versions/node/v6.9.1/bin/npm",
+        //     "stopOnEntry": false,
+        //     "args": ["run", "example"]
+        // }
+    ]
+}
