@@ -18,6 +18,50 @@ const debug = Debug('fjson:tokenizer');
 ]
 */
 
+class Stack {
+    constructor() {
+        this.data = [];
+    }
+
+    push(elem) {
+        this.data.push(elem);
+        return this;
+    }
+
+    pop() {
+        return this.data.pop();
+    }
+
+    peek() {
+        return this.data[this.data.length - 1];
+    }
+
+    isEmpty() {
+        return data.length === 0;
+    }
+
+    clear() {
+        this.data = [];
+        return this;
+    }
+
+    size() {
+        return this.length;
+    }
+}
+
+const addToken = (tokens, opts) => {
+    tokens.push({
+        // 这里 S 的 type 包括了空格，制表符，垂直制表符，换行符，回车符，换页符
+        // 等价于 [ \f\n\r\t\v]
+        type: opts.type,
+        value: opts.value,
+        line: opts.line,
+        col: opts.col,
+        state: opts.state
+    });
+};
+
 /**
  * 词法分析
  *
@@ -34,6 +78,10 @@ export default function (fileContent) {
     let pos = 0;
     let offset = -1;
     let line = 1;
+
+    const state = new Stack();
+    // 初始状态
+    state.push('INITIAL');
 
     while (pos < fileContentLen) {
         let char = fileContent[pos];
@@ -67,13 +115,19 @@ export default function (fileContent) {
                 }
                 while (char === ' ' || char === '\n' || char === '\t' || char === '\r' || char === '\f');
 
-                tokens.push({
+                // 单行注释状态下遇到换行等字符的时候跳出单行注释状态
+                if (state.peek() === 'SC') {
+                    state.pop();
+                }
+
+                addToken(tokens, {
                     // 这里 S 的 type 包括了空格，制表符，垂直制表符，换行符，回车符，换页符
                     // 等价于 [ \f\n\r\t\v]
                     type: 'S',
                     value: fileContent.slice(pos, next),
                     line: line,
-                    col: pos - offset
+                    col: pos - offset,
+                    state: state.peek()
                 });
 
                 pos = next - 1;
@@ -88,38 +142,53 @@ export default function (fileContent) {
                 }
                 // 单行注释
                 else if (nextChar === '/') {
-                    tokens.push({
+                    // 单行注释状态
+                    state.push('SC');
+                    addToken(tokens, {
                         type: 'SINGLE_COMMENT',
                         value: getLineContent(line, fileContent),
                         line: line,
-                        col: pos - offset
+                        col: pos - offset,
+                        state: state.peek()
                     });
                 }
                 break;
 
             case '{':
-                tokens.push({
+                state.push('BLOCK');
+                addToken(tokens, {
                     type: 'LEFT_BRACE',
                     value: char,
                     line: line,
-                    col: pos - offset
+                    col: pos - offset,
+                    state: state.peek()
                 });
                 break;
             case '}':
-                tokens.push({
+                if (state.peek() === 'BLOCK') {
+                    state.pop();
+                }
+
+                addToken(tokens, {
                     type: 'RIGHT_BRACE',
                     value: char,
                     line: line,
-                    col: pos - offset
+                    col: pos - offset,
+                    state: state.peek()
                 });
                 break;
 
             case ':':
-                tokens.push({
+                tokens[tokens.length - 1].type = 'PAIR_KEY';
+
+                state.push('AFTER_COLON');
+
+                addToken(tokens, {
                     type: 'COLON',
                     value: char,
                     line: line,
-                    col: pos - offset
+                    col: pos - offset,
+                    state: state.peek()
                 });
                 break;
 
@@ -135,7 +204,27 @@ export default function (fileContent) {
                 // }
                 next = RE_WORD_END.lastIndex - 2;
 
-                console.log('---' + fileContent.slice(pos, next + 1) + '--');
+                if (state.peek() === 'AFTER_COLON') {
+                    state.pop();
+                    addToken(tokens, {
+                        type: 'PAIR_VALUE',
+                        value: fileContent.slice(pos, next + 1),
+                        line: line,
+                        col: pos - offset,
+                        state: state.peek()
+                    });
+                }
+                else {
+                    addToken(tokens, {
+                        type: 'VALUE',
+                        value: fileContent.slice(pos, next + 1),
+                        line: line,
+                        col: pos - offset,
+                        state: state.peek()
+                    });
+                }
+                console.log(state);
+
                 pos = next;
                 break;
 
